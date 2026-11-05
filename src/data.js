@@ -1,13 +1,8 @@
 /** @typedef {'same'|'split'|'none'|'tbd'} Ans */
 /** @typedef {'commit'|'mode'|'warn'} Cat */
 
-/** @type {{ value: Ans, label: string }[]} */
-export const ansOptions = [
-  { value: 'same', label: '同一个人' },
-  { value: 'split', label: '不同的人' },
-  { value: 'none', label: '暂无' },
-  { value: 'tbd', label: '还在想' },
-];
+/** 四个功能的答案。文案在 locales，不写死在这里。 */
+export const ansValues = /** @type {Ans[]} */ (['same', 'split', 'none', 'tbd']);
 
 /** 词典规模：初版精选 30；现已扩到 93 */
 export const TERM_COUNT = 93;
@@ -122,46 +117,12 @@ export function reading(live, kid, sleep, play) {
   const noneN = vals.filter((v) => v === 'none').length;
   const tbdN = vals.filter((v) => v === 'tbd').length;
 
-  if (tbdN >= 3) {
-    return {
-      lead: '还在描线',
-      body: '先填最在意的那一项就好，不必急着贴标签。',
-      tone: 'info',
-    };
-  }
-  if (sameN === 4) {
-    return {
-      lead: '经典全能打包',
-      body: '四个功能都在同一个人——确认这是你主动选的。',
-      tone: 'success',
-    };
-  }
-  if (splitN >= 2) {
-    return {
-      lead: '功能已拆开',
-      body: '住、养、睡、玩不必捆死；重点是知情同意与规则写清。',
-      tone: 'info',
-    };
-  }
-  if (splitN === 1 && sameN >= 2) {
-    return {
-      lead: '主打包 + 一点分流',
-      body: '大部分还在一人身上，把分流那一项说清楚即可。',
-      tone: 'info',
-    };
-  }
-  if (noneN >= 2) {
-    return {
-      lead: '空位还不少',
-      body: '空着不是失败；先补最痒的那一格。',
-      tone: 'warning',
-    };
-  }
-  return {
-    lead: '混合搭配中',
-    body: '已经不是单一模板——看看下面推给你的词是否贴身。',
-    tone: 'info',
-  };
+  if (tbdN >= 3) return { id: 'readingSketch', tone: 'info' };
+  if (sameN === 4) return { id: 'readingClassic', tone: 'success' };
+  if (splitN >= 2) return { id: 'readingSplit', tone: 'info' };
+  if (splitN === 1 && sameN >= 2) return { id: 'readingMostly', tone: 'info' };
+  if (noneN >= 2) return { id: 'readingEmpty', tone: 'warning' };
+  return { id: 'readingMix', tone: 'info' };
 }
 
 /**
@@ -188,88 +149,88 @@ export function matchTerms(live, kid, sleep, play) {
   };
 
   if (sameN === 4) {
-    add('Relationship', '四个功能都在同一个人：正式关系模板');
-    add('Married', '全能打包常对应法律婚姻顶配');
-    add('Exclusive', '功能未拆，排他性通常也在');
-    add('Hard Launch', '四合一时，官宣往往也是硬发布');
-    add('Soulmate', '全能打包时，人们常会喊出灵魂伴侣');
+    add('Relationship', 'whyClassicRelationship');
+    add('Married', 'whyClassicMarried');
+    add('Exclusive', 'whyClassicExclusive');
+    add('Hard Launch', 'whyClassicHardLaunch');
+    add('Soulmate', 'whyClassicSoulmate');
   }
 
   if (sleep === 'split' || splitN >= 2) {
-    add('Open Relationship', '性或多项功能分给不同人：开放式结构');
-    add('Polyamory', '多中心亲密，且需各方知情同意');
-    add("It's Complicated", '功能拆开后，状态栏常显示情况复杂');
+    add('Open Relationship', 'whySplitOpen');
+    add('Polyamory', 'whySplitPoly');
+    add("It's Complicated", 'whySplitComplicated');
   }
   if (sleep === 'split') {
-    add('FWB', '睡觉已分流：身体关系可能单独存在');
-    add('Booty Call', '性功能分出去时，深夜召唤很常见');
-    add('Sneaky Link', '分流的性线，常常是默契保密的');
+    add('FWB', 'whySleepFwb');
+    add('Booty Call', 'whySleepBooty');
+    add('Sneaky Link', 'whySleepSneaky');
   }
 
   if (sleep === 'none' && (play === 'same' || live === 'same')) {
-    add('Platonic', '有陪伴或同居，但没有性：偏柏拉图');
-    add('Conversationship', '无性有聊：更像纯聊关系');
+    add('Platonic', 'whyPlatonic');
+    add('Conversationship', 'whyConversationship');
   }
 
   if (noneN >= 2) {
-    add('Situationship', '多个功能空着：比朋友多、比恋人少');
-    add('Talking', '格子还空：更像还在聊的阶段');
-    add('Simulationship', '空位多却像有一段关系：小心空壳感');
-    add('Kitationship', '空位多、来去自由：猫系亲近感');
+    add('Situationship', 'whyNoneSituationship');
+    add('Talking', 'whyNoneTalking');
+    add('Simulationship', 'whyNoneSimulation');
+    add('Kitationship', 'whyNoneKitten');
   }
 
   if (live === 'none' && sleep === 'same') {
-    add('FWB', '不同居但有性：典型炮友结构');
-    add('Booty Call', '不住一起、夜里才来：深夜召唤感');
-    add('Vacationship', '生活不重叠、身体偶遇：也像假期限定');
-    add('Sneaky Link', '不同居的身体线，常走地下');
+    add('FWB', 'whyLiveNoneFwb');
+    add('Booty Call', 'whyLiveNoneBooty');
+    add('Vacationship', 'whyLiveNoneVacay');
+    add('Sneaky Link', 'whyLiveNoneSneaky');
   }
 
   if (kid === 'split' || (live === 'split' && sleep === 'same')) {
-    add('Polyamory', '亲权分流，或分居却同睡：多中心可能');
-    add('Open Relationship', '结构已拆：常走开放式规则');
+    add('Polyamory', 'whyKidPoly');
+    add('Open Relationship', 'whyKidOpen');
   }
 
   if (tbdN >= 2) {
-    add('Crush', '多项还在想：脑内戏可能比现实快');
-    add('Talking', '尚未定型：仍在聊天热身');
-    add('Soft Launch', '不确定时，最多只敢软发布');
-    add('Hesitationship', '还在想：典型犹豫关系');
-    add('Imaginationship', '未填格时，幻想往往先跑起来');
+    add('Crush', 'whyTbdCrush');
+    add('Talking', 'whyTbdTalking');
+    add('Soft Launch', 'whyTbdSoft');
+    add('Hesitationship', 'whyTbdHesitate');
+    add('Imaginationship', 'whyTbdImagine');
   }
 
   if (splitN === 1 && sameN >= 2) {
-    add('Relationship', '主功能仍在一人：仍像正式关系底板');
+    add('Relationship', 'whyMostlyRelationship');
     if (sleep === 'split') {
-      add('Open Relationship', '唯一分流在睡觉：开放式性规则');
-      add('FWB', '性单独分出：可能另有炮友线');
+      add('Open Relationship', 'whyMostlySleepOpen');
+      add('FWB', 'whyMostlySleepFwb');
     }
     if (play === 'split') {
-      add('Work Spouse', '玩/陪伴分流：常见办公室搭子');
-      add('Platonic', '陪伴另找人：可偏柏拉图支线');
-      add('Flirtationship', '陪伴分流时，常停在互撩不升级');
+      add('Work Spouse', 'whyMostlyPlayWork');
+      add('Platonic', 'whyMostlyPlayPlatonic');
+      add('Flirtationship', 'whyMostlyPlayFlirt');
     }
     if (live === 'split') {
-      add('Long Distance', '同居分流：生活空间不在一处');
-      add('Locationship', '不同住：靠定位与网络维持');
-      add('Open Relationship', '不同住但其他功能仍打包：结构已开口');
+      add('Long Distance', 'whyMostlyLiveLong');
+      add('Locationship', 'whyMostlyLiveLoc');
+      add('Open Relationship', 'whyMostlyLiveOpen');
     }
     if (kid === 'split') {
-      add('Polyamory', '亲权分流：抚养与亲密不必同一人');
-      add('Open Relationship', '家庭功能已拆：规则要写清');
+      add('Polyamory', 'whyMostlyKidPoly');
+      add('Open Relationship', 'whyMostlyKidOpen');
     }
   }
 
   if (live === 'none' && play === 'same' && sleep !== 'same') {
-    add('Textationship', '不共建生活、主要靠聊：偏短信关系');
-    add('Long Distance', '生活不重叠时，陪伴常靠网络');
-    add('Notification-ship', '不共建生活时，互动常缩成通知与点赞');
+    add('Textationship', 'whyText');
+    add('Long Distance', 'whyTextLong');
+    add('Notification-ship', 'whyTextNotif');
   }
 
   if (tbdN === 4) {
-    add('Crush', '四个都还在想：先从暗恋/脑内戏说起也行');
-    add('Talking', '尚未勾选：默认还在聊天区');
-    add('Procrastinationship', '四个都还在想：也是一种拖延定义');
+    add('Crush', 'whyAllTbdCrush');
+    add('Talking', 'whyAllTbdTalking');
+    add('Procrastinationship', 'whyAllTbdProcrast');
   }
 
   const out = [];
@@ -280,38 +241,6 @@ export function matchTerms(live, kid, sleep, play) {
   return out.slice(0, 10);
 }
 
-/** 类别短标签 */
-export function catLabel(cat) {
-  if (cat === 'commit') return '承诺';
-  if (cat === 'mode') return '互动';
-  return '警示';
-}
-
-/** 类别完整说明 */
-export function catBlurb(cat) {
-  if (cat === 'commit') return '有没有名分 / 规则 / 法律框';
-  if (cat === 'mode') return '日常怎么发生（聊、炮、异地…）';
-  return '操纵与空心关系信号';
-}
-
-/** 类别完整标题（用于全表分组） */
-export function catTitle(cat) {
-  if (cat === 'commit') return '承诺（结构）';
-  if (cat === 'mode') return '互动（形态）';
-  return '警示（风险）';
-}
-
-export function labelFor(value) {
-  return ansOptions.find((o) => o.value === value)?.label ?? '';
-}
-
-/** 正式度：3 正式 / 2 中性 / 1 轻松 */
-export function formalityLabel(n) {
-  if (n >= 3) return '正式';
-  if (n === 2) return '中性';
-  return '轻松';
-}
-
 /** 分类权重：承诺靠前，互动居中，警示靠后 */
 function catOrder(cat) {
   if (cat === 'commit') return 0;
@@ -320,15 +249,18 @@ function catOrder(cat) {
 }
 
 /**
- * 正式 → 不正式：同类内 formality 高者靠前；类序承诺→互动→警示
+ * 正式 → 不正式：同类内 formality 高者靠前；类序承诺→互动→警示。
+ * 同分时按当前语言的本地名称排序。
  * @param {typeof terms} list
+ * @param {(term: typeof terms[number]) => string} [nameOf]
+ * @param {string} [locale]
  */
-export function sortByFormality(list) {
+export function sortByFormality(list, nameOf = (t) => t.zh, locale = 'zh-Hans') {
   return [...list].sort((a, b) => {
     const c = catOrder(a.cat) - catOrder(b.cat);
     if (c !== 0) return c;
     const f = (b.formality ?? 1) - (a.formality ?? 1);
     if (f !== 0) return f;
-    return a.zh.localeCompare(b.zh, 'zh-Hans');
+    return nameOf(a).localeCompare(nameOf(b), locale);
   });
 }

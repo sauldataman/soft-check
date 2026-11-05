@@ -13,7 +13,7 @@
   --shadow: 0 8px 24px rgba(200, 100, 140, 0.12);
   --radius: 18px;
   --radius-sm: 12px;
-  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+  font-family: "PingFang SC", "PingFang TC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
   line-height: 1.55;
@@ -45,10 +45,67 @@ body {
   margin-bottom: 1.25rem;
 }
 
+.hero-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+}
+
+.hero-copy { min-width: 0; flex: 1 1 auto; }
+
 .hero h1 {
   margin: 0 0 0.45rem;
   font-size: clamp(1.45rem, 4vw, 1.85rem);
   letter-spacing: 0.02em;
+}
+
+.lang-picker { width: min(100%, 11.5rem); flex: 0 0 auto; }
+.lang-picker label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.lang-picker select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  color: var(--text);
+  outline: none;
+}
+.lang-picker select:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(232, 160, 191, 0.25);
+}
+
+@media (max-width: 560px) {
+  .hero-bar { flex-direction: column; }
+  .lang-picker { width: 100%; }
+}
+
+.term-gloss {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+.gloss-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  padding: 0.05rem 0.32rem;
+  border-radius: 999px;
+  background: #f3eef8;
+  color: #7d6b93;
+  border: 1px solid #e4d9ee;
 }
 
 .hero p {
@@ -570,7 +627,7 @@ button.ghost { background: transparent; }
 }
 .term-table {
   width: 100%;
-  min-width: 560px;
+  min-width: 680px;
   border-collapse: collapse;
   font-size: 0.88rem;
 }
@@ -597,12 +654,13 @@ button.ghost { background: transparent; }
 .term-table tbody tr:hover { background: #fff6fa; }
 .term-table tbody tr:last-child td { border-bottom: none; }
 .term-table tr.row-hi { background: #ffe9f2; }
-.term-table .col-zh { font-weight: 650; white-space: nowrap; }
+.term-table .col-zh { font-weight: 650; min-width: 8rem; }
 .term-table .col-en {
   color: var(--lilac);
   font-size: 0.82rem;
-  white-space: nowrap;
+  min-width: 8.5rem;
 }
+.term-table .col-en .gloss-tag { margin-right: 0.15rem; }
 .term-table .col-tip { color: var(--text); min-width: 12rem; }
 .term-table .col-vibe,
 .term-table .col-cat { white-space: nowrap; }

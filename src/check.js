@@ -1,12 +1,20 @@
 import './style.css';
+import { ansValues, TERM_COUNT, reading, matchTerms } from './data.js';
 import {
-  ansOptions,
-  TERM_COUNT,
-  reading,
-  matchTerms,
-  catLabel,
-  labelFor,
-} from './data.js';
+  ANS_KEYS,
+  CAT_SHORT,
+  applyDocument,
+  bindLangPicker,
+  escapeHtml,
+  glossHtml,
+  initLang,
+  langPickerHtml,
+  t,
+  termCopy,
+  withLang,
+} from './i18n.js';
+
+initLang();
 
 const state = {
   live: 'tbd',
@@ -19,16 +27,8 @@ const state = {
 
 const root = document.getElementById('app');
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 function allTbd() {
-  return [state.live, state.kid, state.sleep, state.play].every((v) => v === 'tbd');
+  return [state.live, state.kid, state.sleep, state.play].every((value) => value === 'tbd');
 }
 
 /** 抽卡 / 推荐池：仅来自 matchTerms；全 tbd 或无匹配则为空 */
@@ -38,11 +38,11 @@ function matchPool() {
 }
 
 function selectHtml(id, label, value) {
-  const opts = ansOptions
-    .map(
-      (o) =>
-        `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`,
-    )
+  const opts = ansValues
+    .map((option) => {
+      const text = t(ANS_KEYS[option]);
+      return `<option value="${option}" ${option === value ? 'selected' : ''}>${escapeHtml(text)}</option>`;
+    })
     .join('');
   return `
     <div class="field">
@@ -55,30 +55,31 @@ function matchesHtml(matches) {
   if (matches.length === 0) {
     return `
       <div class="match-box soft" id="match-results">
-        <div class="match-title">可能适合你的关系词</div>
-        <p class="match-empty">把上面四个选项点一点；选完会在这里推相关条目，帮你找更舒适的形态。</p>
+        <div class="match-title">${escapeHtml(t('matchTitle'))}</div>
+        <p class="match-empty">${escapeHtml(t('matchEmpty'))}</p>
       </div>`;
   }
 
   const cards = matches
-    .map(
-      (m) => `
-      <a class="match-card" href="./table.html?q=${encodeURIComponent(m.term.en)}">
+    .map((match) => {
+      const copy = termCopy(match.term);
+      return `
+      <a class="match-card" href="${withLang(`./table.html?q=${encodeURIComponent(match.term.en)}`)}">
         <div class="match-card-top">
-          <span class="match-zh">${escapeHtml(m.term.zh)}</span>
-          <span class="pill ${m.term.cat === 'warn' ? 'warn' : 'ok'}">${escapeHtml(catLabel(m.term.cat))}</span>
+          <span class="match-zh term-name">${escapeHtml(copy.name)}</span>
+          <span class="pill ${match.term.cat === 'warn' ? 'warn' : 'ok'}">${escapeHtml(t(CAT_SHORT[match.term.cat]))}</span>
         </div>
-        <div class="match-en">${escapeHtml(m.term.en)} · ${escapeHtml(m.term.vibe)}</div>
-        <p class="match-tip">${escapeHtml(m.term.tip)}</p>
-        <p class="match-why">${escapeHtml(m.why)}</p>
-      </a>`,
-    )
+        <div class="match-en">${glossHtml(copy.en)} · ${escapeHtml(copy.vibe)}</div>
+        <p class="match-tip">${escapeHtml(copy.tip)}</p>
+        <p class="match-why">${escapeHtml(t(match.why))}</p>
+      </a>`;
+    })
     .join('');
 
   return `
     <div class="match-box" id="match-results">
-      <div class="match-title">可能适合你的关系词 <span class="match-count">${matches.length}</span></div>
-      <p class="match-hint">根据你的组合推的；点卡片可到全表看定义。下面「抽一张」也只从这池里抽。</p>
+      <div class="match-title">${escapeHtml(t('matchTitle'))} <span class="match-count">${matches.length}</span></div>
+      <p class="match-hint">${escapeHtml(t('matchHint'))}</p>
       <div class="match-grid">${cards}</div>
     </div>`;
 }
@@ -87,111 +88,120 @@ function drawSectionHtml(matches) {
   if (matches.length === 0) {
     return `
       <div class="draw-block" id="draw">
-        <h3 class="draw-title">抽一张</h3>
-        <p class="lead">只从上面「可能适合你的关系词」里随机抽——先完成自查才会出现可抽的池子。</p>
+        <h3 class="draw-title">${escapeHtml(t('drawTitle'))}</h3>
+        <p class="lead">${escapeHtml(t('drawEmptyLead'))}</p>
         <div class="callout info empty">
-          <div class="lead">还不能抽</div>
-          <p>先把四个功能选一选（别全留「还在想」）。有推荐词之后，再回来抽。</p>
+          <div class="lead">${escapeHtml(t('drawLockedTitle'))}</div>
+          <p>${escapeHtml(t('drawLockedBody'))}</p>
         </div>
       </div>`;
   }
 
-  const pool = matches.map((m) => m.term);
+  const pool = matches.map((match) => match.term);
   const safeIdx = ((state.idx % pool.length) + pool.length) % pool.length;
   const card = pool[safeIdx];
+  const copy = termCopy(card);
   const why = matches[safeIdx]?.why ?? '';
 
   return `
     <div class="draw-block" id="draw">
-      <h3 class="draw-title">抽一张</h3>
-      <p class="lead">池子：可能适合你的关系词 · ${pool.length} 个。上一张 / 下一张也在同一池里翻。</p>
+      <h3 class="draw-title">${escapeHtml(t('drawTitle'))}</h3>
+      <p class="lead">${escapeHtml(t('drawLead', { n: pool.length }))}</p>
       <div class="card-panel" id="term-card">
-        <div class="en">${escapeHtml(card.en)}</div>
-        <div class="zh">${escapeHtml(card.zh)} · ${escapeHtml(card.vibe)}</div>
-        <p class="tip">${escapeHtml(card.tip)}</p>
-        ${why ? `<p class="match-why" style="margin:0.45rem 0 0">${escapeHtml(why)}</p>` : ''}
+        <div class="zh term-name">${escapeHtml(copy.name)}</div>
+        <div class="en">${glossHtml(copy.en)} · ${escapeHtml(copy.vibe)}</div>
+        <p class="tip">${escapeHtml(copy.tip)}</p>
+        ${why ? `<p class="match-why" style="margin:0.45rem 0 0">${escapeHtml(t(why))}</p>` : ''}
         <div class="meta-row">
-          <span class="pill ${card.cat === 'warn' ? 'warn' : 'ok'}">${escapeHtml(catLabel(card.cat))}</span>
-          <span class="pill">${escapeHtml(card.vibe)}</span>
+          <span class="pill ${card.cat === 'warn' ? 'warn' : 'ok'}">${escapeHtml(t(CAT_SHORT[card.cat]))}</span>
+          <span class="pill">${escapeHtml(copy.vibe)}</span>
         </div>
       </div>
       <div class="nav-btns">
-        <button type="button" id="prev-card">上一张</button>
-        <button type="button" id="rand-card" class="primary">抽一张</button>
-        <button type="button" id="next-card">下一张</button>
+        <button type="button" id="prev-card">${escapeHtml(t('prev'))}</button>
+        <button type="button" id="rand-card" class="primary">${escapeHtml(t('drawBtn'))}</button>
+        <button type="button" id="next-card">${escapeHtml(t('next'))}</button>
       </div>
-      <p class="hint">第 ${safeIdx + 1} / ${pool.length} · 推荐池</p>
-      <p class="dict-note"><a href="./table.html?q=${encodeURIComponent(card.en)}">在全表看「${escapeHtml(card.zh)}」定义 →</a></p>
+      <p class="hint">${escapeHtml(t('drawPos', { i: safeIdx + 1, n: pool.length }))}</p>
+      <p class="dict-note"><a href="${withLang(`./table.html?q=${encodeURIComponent(card.en)}`)}">${escapeHtml(t('seeDef', { name: copy.name }))}</a></p>
     </div>`;
 }
 
 function tableBannerHtml() {
   return `
-    <a class="table-banner" href="./table.html">
-      <div class="table-banner-kicker">查定义 · 共 ${TERM_COUNT} 条</div>
-      <div class="table-banner-title">打开关系全表</div>
-      <p class="table-banner-desc">承诺 / 互动 / 警示分类 · 正式→不正式排序 · 可搜索</p>
-      <span class="table-banner-cta">去全表 →</span>
+    <a class="table-banner" href="${withLang('./table.html')}">
+      <div class="table-banner-kicker">${escapeHtml(t('bannerKicker', { n: TERM_COUNT }))}</div>
+      <div class="table-banner-title">${escapeHtml(t('bannerTitle'))}</div>
+      <p class="table-banner-desc">${escapeHtml(t('bannerDesc'))}</p>
+      <span class="table-banner-cta">${escapeHtml(t('bannerCta'))}</span>
     </a>`;
 }
 
 function render() {
+  applyDocument('check');
   const verdict = reading(state.live, state.kid, state.sleep, state.play);
   const matches = matchPool();
 
   root.innerHTML = `
     <header class="hero">
-      <h1>现代两性关系自查</h1>
-      <p>帮你找到更舒适的关系形态；需要查定义时，一键跳到全表。</p>
+      <div class="hero-bar">
+        <div class="hero-copy">
+          <h1>${escapeHtml(t('checkTitle'))}</h1>
+          <p>${escapeHtml(t('checkSubtitle'))}</p>
+        </div>
+        ${langPickerHtml()}
+      </div>
       <div class="badge-row">
-        <span class="badge">自查推词</span>
-        <span class="badge">推荐池抽卡</span>
-        <span class="badge">全表另页</span>
+        <span class="badge">${escapeHtml(t('badgeCheck'))}</span>
+        <span class="badge">${escapeHtml(t('badgeDraw'))}</span>
+        <span class="badge">${escapeHtml(t('badgeTablePage'))}</span>
       </div>
     </header>
 
     ${tableBannerHtml()}
 
     <section class="section" id="check">
-      <h2>你的关系组合</h2>
-      <p class="lead">四个功能不必捆在同一个人身上。选一选「现在」或「想要」——选完会推相关关系词。</p>
+      <h2>${escapeHtml(t('comboTitle'))}</h2>
+      <p class="lead">${escapeHtml(t('comboLead'))}</p>
       <div class="grid-2">
-        ${selectHtml('live', '一起生活', state.live)}
-        ${selectHtml('kid', '生 / 养小孩', state.kid)}
-        ${selectHtml('sleep', '睡觉 / 性', state.sleep)}
-        ${selectHtml('play', '玩 / 陪伴', state.play)}
+        ${selectHtml('live', t('fieldLive'), state.live)}
+        ${selectHtml('kid', t('fieldKid'), state.kid)}
+        ${selectHtml('sleep', t('fieldSleep'), state.sleep)}
+        ${selectHtml('play', t('fieldPlay'), state.play)}
       </div>
-      <p class="verdict-line ${escapeHtml(verdict.tone)}">${escapeHtml(verdict.lead)} · ${escapeHtml(verdict.body)}</p>
+      <p class="verdict-line ${escapeHtml(verdict.tone)}">${escapeHtml(t(`${verdict.id}Lead`))} · ${escapeHtml(t(`${verdict.id}Body`))}</p>
       ${matchesHtml(matches)}
       ${drawSectionHtml(matches)}
       <div class="props">
-        <div class="prop"><span class="k">同居</span><span class="v">${escapeHtml(labelFor(state.live))}</span></div>
-        <div class="prop"><span class="k">亲权</span><span class="v">${escapeHtml(labelFor(state.kid))}</span></div>
-        <div class="prop"><span class="k">身体</span><span class="v">${escapeHtml(labelFor(state.sleep))}</span></div>
-        <div class="prop"><span class="k">陪伴</span><span class="v">${escapeHtml(labelFor(state.play))}</span></div>
+        <div class="prop"><span class="k">${escapeHtml(t('propLive'))}</span><span class="v">${escapeHtml(t(ANS_KEYS[state.live]))}</span></div>
+        <div class="prop"><span class="k">${escapeHtml(t('propKid'))}</span><span class="v">${escapeHtml(t(ANS_KEYS[state.kid]))}</span></div>
+        <div class="prop"><span class="k">${escapeHtml(t('propSleep'))}</span><span class="v">${escapeHtml(t(ANS_KEYS[state.sleep]))}</span></div>
+        <div class="prop"><span class="k">${escapeHtml(t('propPlay'))}</span><span class="v">${escapeHtml(t(ANS_KEYS[state.play]))}</span></div>
       </div>
       <div class="btn-row">
-        <button type="button" id="reset-btn" class="ghost">全部重置成「还在想」</button>
+        <button type="button" id="reset-btn" class="ghost">${escapeHtml(t('reset'))}</button>
       </div>
     </section>
 
     ${tableBannerHtml()}
 
     <footer class="site-footer">
-      <p>整理自现代关系术语表与 -ship 扩展表 · 共 ${TERM_COUNT} 条 · <a href="./table.html">关系全表</a></p>
+      <p>${escapeHtml(t('footer', { n: TERM_COUNT }))} · <a href="${withLang('./table.html')}">${escapeHtml(t('footerTableLink'))}</a></p>
     </footer>
 
-    <button type="button" class="back-top" id="back-top" title="回到上面">回到上面</button>
+    <button type="button" class="back-top" id="back-top" title="${escapeHtml(t('backTop'))}">${escapeHtml(t('backTop'))}</button>
   `;
 
   bind(matches);
 }
 
 function bind(matches) {
+  bindLangPicker(render);
+
   root.querySelectorAll('select[data-field]').forEach((el) => {
-    el.addEventListener('change', (e) => {
-      const key = e.target.dataset.field;
-      state[key] = e.target.value;
+    el.addEventListener('change', (event) => {
+      const key = event.target.dataset.field;
+      state[key] = event.target.value;
       state.idx = 0;
       render();
       const box = document.getElementById('match-results');

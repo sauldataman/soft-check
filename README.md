@@ -7,6 +7,8 @@
 
 技术栈：**Vite + 原生 JS**（多页入口），适合挂到 **Cloudflare Pages**。
 
+界面和词条释义有 10 种语言：`zh-CN`（默认）、`zh-TW`、`en`、`es`、`ja`、`ko`、`vi`、`ru`、`fr`、`it`。两页顶部都可以切换。选择写入 `localStorage`，地址栏 `?lang=` 优先并同步到另一页。任何语言下，关系词都会同时显示本地名称和英文原词。
+
 ## Cloudflare Pages
 
 | 设置 | 值 |
@@ -23,6 +25,8 @@ table.html      # 全表页
 src/check.js    # 自查 + 推荐池抽卡
 src/table.js    # 全表浏览
 src/data.js     # terms(+formality) + reading + matchTerms
+src/i18n.js     # 语言选择、?lang=、localStorage
+src/locales/    # 界面文案与 10 语词条
 src/style.css
 dist/           # npm run build 产物（不入库）
 ```
