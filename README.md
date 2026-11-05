@@ -15,7 +15,10 @@
 | --- | --- |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
+| Deploy command | 留空（leave blank） |
 | Node.js | 18+ |
+
+**Deploy command 必须留空。** 不要设置 `npx wrangler deploy` 或任何 wrangler 命令。本站只发布静态 Pages 资源（构建产物 `dist`）；`wrangler deploy` 会把它当成 Workers + Vite 应用，并在 Vite 5 上报错（需要 Vite >= 6.0.0）。
 
 ## 代码
 
