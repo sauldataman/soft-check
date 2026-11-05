@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "soft-check",
+  // Assets only — no Worker script. A Wrangler config file skips Vite
+  // framework auto-config, which fails on Vite 5 (that path needs Vite >= 6).
+  // https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/
+  "compatibility_date": "2026-11-05",
+  "assets": {
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  }
+}
