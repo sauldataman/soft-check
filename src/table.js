@@ -1,13 +1,24 @@
 import './style.css';
+import { terms, TERM_COUNT, sortByFormality } from './data.js';
 import {
-  terms,
-  TERM_COUNT,
-  catLabel,
-  catBlurb,
-  catTitle,
-  formalityLabel,
-  sortByFormality,
-} from './data.js';
+  CAT_BLURB,
+  CAT_SHORT,
+  CAT_TITLE,
+  applyDocument,
+  bindLangPicker,
+  escapeHtml,
+  formalityKey,
+  getLocale,
+  glossHtml,
+  initLang,
+  langPickerHtml,
+  t,
+  termCopy,
+  termSearchText,
+  withLang,
+} from './i18n.js';
+
+initLang();
 
 const params = new URLSearchParams(window.location.search);
 
@@ -19,46 +30,33 @@ const state = {
 
 const root = document.getElementById('app');
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 function countBy(cat) {
-  return terms.filter((t) => t.cat === cat).length;
+  return terms.filter((term) => term.cat === cat).length;
 }
 
 function filteredTerms() {
   const needle = state.q.trim().toLowerCase();
-  const list = terms.filter((t) => {
-    if (state.cat !== 'all' && t.cat !== state.cat) return false;
+  const list = terms.filter((term) => {
+    if (state.cat !== 'all' && term.cat !== state.cat) return false;
     if (!needle) return true;
-    return (
-      t.en.toLowerCase().includes(needle) ||
-      t.zh.includes(needle) ||
-      t.tip.includes(needle) ||
-      t.vibe.includes(needle)
-    );
+    return termSearchText(term).includes(needle);
   });
-  return sortByFormality(list);
+  return sortByFormality(list, (term) => termCopy(term).name, getLocale());
 }
 
 function catSegHtml() {
   return `
-    <div class="seg cat-seg" role="tablist" aria-label="分类">
-      <button type="button" data-cat="all" class="${state.cat === 'all' ? 'active' : ''}">全部 <span class="count">${terms.length}</span></button>
-      <button type="button" data-cat="commit" class="${state.cat === 'commit' ? 'active' : ''}" title="${escapeHtml(catBlurb('commit'))}">承诺 <span class="count">${countBy('commit')}</span></button>
-      <button type="button" data-cat="mode" class="${state.cat === 'mode' ? 'active' : ''}" title="${escapeHtml(catBlurb('mode'))}">互动 <span class="count">${countBy('mode')}</span></button>
-      <button type="button" data-cat="warn" class="${state.cat === 'warn' ? 'active' : ''}" title="${escapeHtml(catBlurb('warn'))}">警示 <span class="count">${countBy('warn')}</span></button>
+    <div class="seg cat-seg" role="tablist" aria-label="${escapeHtml(t('catAria'))}">
+      <button type="button" data-cat="all" class="${state.cat === 'all' ? 'active' : ''}">${escapeHtml(t('catAll'))} <span class="count">${terms.length}</span></button>
+      <button type="button" data-cat="commit" class="${state.cat === 'commit' ? 'active' : ''}" title="${escapeHtml(t(CAT_BLURB.commit))}">${escapeHtml(t(CAT_SHORT.commit))} <span class="count">${countBy('commit')}</span></button>
+      <button type="button" data-cat="mode" class="${state.cat === 'mode' ? 'active' : ''}" title="${escapeHtml(t(CAT_BLURB.mode))}">${escapeHtml(t(CAT_SHORT.mode))} <span class="count">${countBy('mode')}</span></button>
+      <button type="button" data-cat="warn" class="${state.cat === 'warn' ? 'active' : ''}" title="${escapeHtml(t(CAT_BLURB.warn))}">${escapeHtml(t(CAT_SHORT.warn))} <span class="count">${countBy('warn')}</span></button>
     </div>
     <div class="cat-blurbs">
-      <div class="cat-blurb"><strong>承诺（结构）</strong>：${escapeHtml(catBlurb('commit'))}</div>
-      <div class="cat-blurb"><strong>互动（形态）</strong>：${escapeHtml(catBlurb('mode'))}</div>
-      <div class="cat-blurb"><strong>警示（风险）</strong>：${escapeHtml(catBlurb('warn'))}</div>
-      <div class="cat-blurb"><strong>排序</strong>：同类内按正式 → 不正式（正式气质靠前）；分类顺序为承诺 → 互动 → 警示。</div>
+      <div class="cat-blurb"><strong>${escapeHtml(t(CAT_TITLE.commit))}</strong>：${escapeHtml(t(CAT_BLURB.commit))}</div>
+      <div class="cat-blurb"><strong>${escapeHtml(t(CAT_TITLE.mode))}</strong>：${escapeHtml(t(CAT_BLURB.mode))}</div>
+      <div class="cat-blurb"><strong>${escapeHtml(t(CAT_TITLE.warn))}</strong>：${escapeHtml(t(CAT_BLURB.warn))}</div>
+      <div class="cat-blurb"><strong>${escapeHtml(t('sortLabel'))}</strong>：${escapeHtml(t('sortNote'))}</div>
     </div>`;
 }
 
@@ -67,49 +65,51 @@ function tableViewHtml(filtered) {
   const groups = order
     .map((cat) => ({
       cat,
-      rows: filtered.filter((t) => t.cat === cat),
+      rows: filtered.filter((term) => term.cat === cat),
     }))
-    .filter((g) => g.rows.length > 0);
+    .filter((group) => group.rows.length > 0);
 
   if (groups.length === 0) {
     return `
       <div class="callout warning empty">
-        <div class="lead">没搜到</div>
-        <p>换个关键词试试，或把分类切回「全部」。</p>
+        <div class="lead">${escapeHtml(t('emptyTitle'))}</div>
+        <p>${escapeHtml(t('emptyBody'))}</p>
       </div>`;
   }
 
   const blocks = groups
-    .map((g) => {
-      const rows = g.rows
-        .map((t) => {
-          const hi = state.highlightEn && state.highlightEn.toLowerCase() === t.en.toLowerCase()
-            ? ' class="row-hi"'
-            : '';
-          const safeId = `row-${t.en.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    .map((group) => {
+      const rows = group.rows
+        .map((term) => {
+          const copy = termCopy(term);
+          const hi =
+            state.highlightEn && state.highlightEn.toLowerCase() === term.en.toLowerCase()
+              ? ' class="row-hi"'
+              : '';
+          const safeId = `row-${term.en.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
           return `
             <tr${hi} id="${safeId}">
-              <td class="col-zh">${escapeHtml(t.zh)}</td>
-              <td class="col-en">${escapeHtml(t.en)}</td>
-              <td class="col-tip">${escapeHtml(t.tip)}</td>
-              <td class="col-vibe"><span class="pill">${escapeHtml(t.vibe)}</span></td>
-              <td class="col-cat"><span class="pill">${escapeHtml(formalityLabel(t.formality))}</span></td>
+              <td class="col-zh term-name">${escapeHtml(copy.name)}</td>
+              <td class="col-en">${glossHtml(copy.en)}</td>
+              <td class="col-tip">${escapeHtml(copy.tip)}</td>
+              <td class="col-vibe"><span class="pill">${escapeHtml(copy.vibe)}</span></td>
+              <td class="col-cat"><span class="pill">${escapeHtml(t(formalityKey(term.formality)))}</span></td>
             </tr>`;
         })
         .join('');
       return `
         <div class="table-group">
-          <h3 class="table-group-title">${escapeHtml(catTitle(g.cat))} <span class="count">${g.rows.length}</span></h3>
-          <p class="table-group-blurb">${escapeHtml(catBlurb(g.cat))} · 组内正式→不正式</p>
+          <h3 class="table-group-title">${escapeHtml(t(CAT_TITLE[group.cat]))} <span class="count">${group.rows.length}</span></h3>
+          <p class="table-group-blurb">${escapeHtml(t(CAT_BLURB[group.cat]))} · ${escapeHtml(t('groupOrder'))}</p>
           <div class="table-scroll">
             <table class="term-table">
               <thead>
                 <tr>
-                  <th>中文</th>
-                  <th>英文</th>
-                  <th>定义</th>
-                  <th>气质</th>
-                  <th>正式度</th>
+                  <th>${escapeHtml(t('colName'))}</th>
+                  <th>${escapeHtml(t('colEn'))}</th>
+                  <th>${escapeHtml(t('colTip'))}</th>
+                  <th>${escapeHtml(t('colVibe'))}</th>
+                  <th>${escapeHtml(t('colForm'))}</th>
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
@@ -120,52 +120,58 @@ function tableViewHtml(filtered) {
     .join('');
 
   return `
-    <p class="table-caption">共 ${TERM_COUNT} 条 · 当前显示 ${filtered.length} 条 · 正式→不正式</p>
+    <p class="table-caption">${escapeHtml(t('caption', { n: TERM_COUNT, m: filtered.length }))}</p>
     ${blocks}`;
 }
 
 function render() {
+  applyDocument('table');
   const filtered = filteredTerms();
 
   root.innerHTML = `
     <header class="hero">
-      <h1>关系全表</h1>
-      <p>查定义用。按承诺 / 互动 / 警示分类，组内从正式到不正式排列。</p>
+      <div class="hero-bar">
+        <div class="hero-copy">
+          <h1>${escapeHtml(t('tableTitle'))}</h1>
+          <p>${escapeHtml(t('tableSubtitle'))}</p>
+        </div>
+        ${langPickerHtml()}
+      </div>
       <div class="badge-row">
-        <span class="badge">共 ${TERM_COUNT} 条</span>
-        <span class="badge">正式 → 不正式</span>
-        <span class="badge">可搜索</span>
+        <span class="badge">${escapeHtml(t('badgeCount', { n: TERM_COUNT }))}</span>
+        <span class="badge">${escapeHtml(t('badgeFormal'))}</span>
+        <span class="badge">${escapeHtml(t('badgeSearch'))}</span>
       </div>
     </header>
 
-    <a class="back-banner" href="./index.html">
-      <span class="back-banner-title">← 返回自查</span>
-      <span class="back-banner-desc">选功能、看推荐、从推荐池抽卡</span>
+    <a class="back-banner" href="${withLang('./index.html')}">
+      <span class="back-banner-title">${escapeHtml(t('backTitle'))}</span>
+      <span class="back-banner-desc">${escapeHtml(t('backDesc'))}</span>
     </a>
 
     <section class="section" id="table">
-      <h2>完整词汇表</h2>
-      <p class="lead">分类筛选 + 搜索；同分类内正式气质靠前。</p>
+      <h2>${escapeHtml(t('dictTitle'))}</h2>
+      <p class="lead">${escapeHtml(t('dictLead'))}</p>
       ${catSegHtml()}
       <div class="toolbar">
         <div class="field search-field">
-          <label for="search">搜索</label>
-          <input id="search" type="search" placeholder="比如：幽灵、FWB、开放…" value="${escapeHtml(state.q)}" />
+          <label for="search">${escapeHtml(t('search'))}</label>
+          <input id="search" type="search" placeholder="${escapeHtml(t('searchPh'))}" value="${escapeHtml(state.q)}" />
         </div>
       </div>
       ${tableViewHtml(filtered)}
     </section>
 
-    <a class="back-banner" href="./index.html">
-      <span class="back-banner-title">← 返回自查</span>
-      <span class="back-banner-desc">找更舒适的关系组合</span>
+    <a class="back-banner" href="${withLang('./index.html')}">
+      <span class="back-banner-title">${escapeHtml(t('backTitle'))}</span>
+      <span class="back-banner-desc">${escapeHtml(t('backDesc2'))}</span>
     </a>
 
     <footer class="site-footer">
-      <p>整理自现代关系术语表与 -ship 扩展表 · 共 ${TERM_COUNT} 条 · <a href="./index.html">回到自查</a></p>
+      <p>${escapeHtml(t('footer', { n: TERM_COUNT }))} · <a href="${withLang('./index.html')}">${escapeHtml(t('footerCheckLink'))}</a></p>
     </footer>
 
-    <button type="button" class="back-top" id="back-top" title="回到上面">回到上面</button>
+    <button type="button" class="back-top" id="back-top" title="${escapeHtml(t('backTop'))}">${escapeHtml(t('backTop'))}</button>
   `;
 
   bind();
@@ -186,6 +192,8 @@ function render() {
 }
 
 function bind() {
+  bindLangPicker(render);
+
   root.querySelectorAll('.seg button[data-cat]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.cat = btn.dataset.cat;
@@ -195,9 +203,9 @@ function bind() {
 
   const search = root.querySelector('#search');
   if (search) {
-    search.addEventListener('input', (e) => {
-      state.q = e.target.value;
-      const pos = e.target.selectionStart;
+    search.addEventListener('input', (event) => {
+      state.q = event.target.value;
+      const pos = event.target.selectionStart;
       render();
       const again = document.getElementById('search');
       if (again) {
